@@ -1,40 +1,36 @@
 import jsonfile from "jsonfile";
 import moment from "moment";
 import simpleGit from "simple-git";
-import random from "random";
 
 const path = "./data.json";
+const git = simpleGit();
 
-const markCommit = (x, y) => {
-  const date = moment()
-    .subtract(1, "y")
-    .add(1, "d")
-    .add(x, "w")
-    .add(y, "d")
-    .format();
+const DAYS = 365;
+const PER_DAY = 5;
+const HOURS = [9, 10, 13, 15, 17];
 
-  const data = {
-    date: date,
-  };
-
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date }).push();
-  });
+const makeCommit = async (date) => {
+  const data = { date };
+  jsonfile.writeFileSync(path, data);
+  await git.add([path]);
+  await git.commit(date, { "--date": date });
 };
 
-const makeCommits = (n) => {
-  if(n===0) return simpleGit().push();
-  const x = random.int(0, 54);
-  const y = random.int(0, 6);
-  const date = moment().subtract(1, "y").add(1, "d").add(x, "w").add(y, "d").format();
-
-  const data = {
-    date: date,
-  };
-  console.log(date);
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date },makeCommits.bind(this,--n));
-  });
+const fill = async () => {
+  let count = 0;
+  for (let d = 0; d < DAYS; d++) {
+    const day = moment().subtract(DAYS, "d").add(d, "d");
+    for (const h of HOURS) {
+      const date = day.clone().hour(h).minute(0).second(0).format();
+      await makeCommit(date);
+      count++;
+    }
+    if (d % 25 === 0) console.log(`day ${d}/${DAYS} (${count} commits so far)`);
+  }
+  console.log(`done: ${count} commits`);
 };
 
-makeCommits(100);
+fill().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
